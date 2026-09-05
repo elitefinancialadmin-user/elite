@@ -552,7 +552,9 @@
       <div class="search-row">
         <input class="search-input" type="text" id="search-prod" placeholder="🔍 Buscar por nombre o código..." oninput="renderProductos()">
         <select id="filter-cat" onchange="renderProductos()" style="width:175px;"><option value="">Todas las categorías</option></select>
+        <select id="filter-proveedor" onchange="renderProductos()" style="width:175px;"><option value="">Todos los proveedores</option></select>
       </div>
+      <div id="resumen-productos" style="font-size:12.5px;color:var(--text2);margin-bottom:12px;"></div>
       <div class="card">
         <table><thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Precio Venta</th><th>Costo</th><th>Margen</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody id="tabla-productos"></tbody></table>
@@ -700,6 +702,7 @@
       <div class="form-group"><label>Costo / Precio Compra ($)</label><input type="text" inputmode="numeric" id="p-costo" placeholder="0" oninput="formatearInputDinero(this)"></div>
       <div class="form-group"><label>Stock Inicial</label><input type="number" id="p-stock" placeholder="0" min="0"></div>
       <div class="form-group"><label>Color</label><input type="text" id="p-color" placeholder="Ej: Negro, Azul Titanio..."></div>
+      <div class="form-group"><label>Proveedor</label><input type="text" id="p-proveedor" placeholder="Ej: Juan Pérez, Distribuidora XYZ..."></div>
       <div class="form-group"><label>IMEI (opcional)</label><input type="text" id="p-imei" placeholder="000000000000000" maxlength="17"></div>
       <div class="form-group"><label>% Batería (opcional)</label><input type="number" id="p-bateria" placeholder="Ej: 92" min="0" max="100"></div>
       <div class="form-group full"><label>Descripción</label><input type="text" id="p-desc" placeholder="Descripción del producto..."></div>
@@ -920,7 +923,7 @@ async function saveState(){
     // pero ya no bloquea a permisos, cierres, gastos, etc. que no tienen relación con eso.
     await intentar('categorias', syncTablaCompleta('categorias', DB.categorias.map(nombre=>({nombre})), 'nombre'));
     await intentar('clientes', syncTablaCompleta('clientes', DB.clientes.map(c=>({id:c.id, nombre:c.nombre, cedula:c.cedula||null, telefono:c.telefono||null, email:c.email||null, direccion:c.dir||null})), 'id'));
-    await intentar('productos', syncTablaCompleta('productos', DB.productos.map(p=>({id:p.id, codigo:p.codigo||null, nombre:p.nombre, categoria:p.cat||null, precio:p.precio, costo:p.costo, stock:p.stock, stock_minimo:p.min||0, color:p.color||null, imei:p.imei||null, bateria:p.bateria??null, descripcion:p.desc||null})), 'id'));
+    await intentar('productos', syncTablaCompleta('productos', DB.productos.map(p=>({id:p.id, codigo:p.codigo||null, nombre:p.nombre, categoria:p.cat||null, precio:p.precio, costo:p.costo, stock:p.stock, stock_minimo:p.min||0, color:p.color||null, proveedor:p.proveedor||null, imei:p.imei||null, bateria:p.bateria??null, descripcion:p.desc||null})), 'id'));
     await intentar('ventas', syncTablaCompleta('ventas', filasVentas, 'id'));
     await intentar('venta_items', syncTablaCompleta('venta_items', filasItems, 'id'));
     await intentar('venta_pagos', syncTablaCompleta('venta_pagos', filasPagos, 'id'));
@@ -961,7 +964,7 @@ async function loadState(){
     [prod,cli,cat,vts,vit,vpg,mov,cxc,abo,gas,cie,cfg].forEach(r=>{ if(r.error) throw r.error; });
 
     if(prod.data && prod.data.length){
-      DB.productos = prod.data.map(p=>({ id:p.id, codigo:p.codigo, nombre:p.nombre, cat:p.categoria, precio:Number(p.precio), costo:Number(p.costo), stock:p.stock, min:p.stock_minimo, color:p.color, imei:p.imei, bateria:p.bateria==null?null:Number(p.bateria), desc:p.descripcion }));
+      DB.productos = prod.data.map(p=>({ id:p.id, codigo:p.codigo, nombre:p.nombre, cat:p.categoria, precio:Number(p.precio), costo:Number(p.costo), stock:p.stock, min:p.stock_minimo, color:p.color, proveedor:p.proveedor, imei:p.imei, bateria:p.bateria==null?null:Number(p.bateria), desc:p.descripcion }));
       DB.clientes = (cli.data||[]).map(c=>({ id:c.id, nombre:c.nombre, cedula:c.cedula, telefono:c.telefono, email:c.email, dir:c.direccion }));
       DB.categorias = (cat.data||[]).map(c=>c.nombre);
 
@@ -1186,15 +1189,22 @@ function confirmarEliminarVenta(){
 function renderProductos(){
   const q=(document.getElementById('search-prod')?.value||'').toLowerCase();
   const cat=document.getElementById('filter-cat')?.value||'';
+  const prov=document.getElementById('filter-proveedor')?.value||'';
   const cats=listaCategorias();
   const fc=document.getElementById('filter-cat');
   if(fc){const ov=fc.value;fc.innerHTML='<option value="">Todas las categorías</option>';cats.forEach(c=>{const o=new Option(c,c);if(c===ov)o.selected=true;fc.appendChild(o);});}
-  const f=DB.productos.filter(p=>(!q||p.nombre.toLowerCase().includes(q)||p.codigo.toLowerCase().includes(q)||(p.imei&&p.imei.includes(q)))&&(!cat||p.cat===cat));
+  const fp=document.getElementById('filter-proveedor');
+  if(fp){const ov=fp.value;const provs=[...new Set(DB.productos.map(p=>p.proveedor).filter(Boolean))].sort();fp.innerHTML='<option value="">Todos los proveedores</option>';provs.forEach(pv=>{const o=new Option(pv,pv);if(pv===ov)o.selected=true;fp.appendChild(o);});}
+  const f=DB.productos.filter(p=>(!q||p.nombre.toLowerCase().includes(q)||p.codigo.toLowerCase().includes(q)||(p.imei&&p.imei.includes(q)))&&(!cat||p.cat===cat)&&(!prov||p.proveedor===prov));
+  const totalUnidades=f.reduce((s,p)=>s+p.stock,0);
+  const valorCosto=f.reduce((s,p)=>s+(p.stock*p.costo),0);
+  const valorVenta=f.reduce((s,p)=>s+(p.stock*p.precio),0);
+  document.getElementById('resumen-productos').innerHTML=`Mostrando <strong style="color:var(--text)">${f.length}</strong> producto${f.length===1?'':'s'} · <strong style="color:var(--text)">${totalUnidades}</strong> unidades en stock · Valor costo: <strong style="color:var(--text)">${fmt(valorCosto)}</strong> · Valor venta: <strong style="color:var(--accent)">${fmt(valorVenta)}</strong>`;
   document.getElementById('tabla-productos').innerHTML=f.map(p=>{
     const idx=DB.productos.indexOf(p);
     const margen=p.precio>0?Math.round((p.precio-p.costo)/p.precio*100):0;
     const est=p.stock<=0?'<span class="badge badge-red">Sin Stock</span>':'<span class="badge badge-green">Disponible</span>';
-    const detalles=[p.color,p.imei?'IMEI: '+p.imei:null,p.bateria!=null?'Batería: '+p.bateria+'%':null].filter(Boolean).join(' · ');
+    const detalles=[p.color,p.imei?'IMEI: '+p.imei:null,p.bateria!=null?'Batería: '+p.bateria+'%':null,p.proveedor?'Proveedor: '+p.proveedor:null].filter(Boolean).join(' · ');
     return `<tr>
       <td><code style="color:var(--accent);font-size:11px;background:rgba(184,134,11,0.08);padding:2px 6px;border-radius:4px">${p.codigo}</code></td>
       <td><div style="font-weight:700">${p.nombre}</div><div style="font-size:11px;color:var(--text2);margin-top:1px">${p.desc}</div>${detalles?`<div style="font-size:10.5px;color:var(--accent);margin-top:2px">${detalles}</div>`:''}</td>
@@ -1235,8 +1245,8 @@ function generarCodigoProducto(){
   });
   return 'EL-'+String(max+1).padStart(3,'0');
 }
-function abrirModalProducto(){editProdIdx=null;document.getElementById('modal-prod-title').textContent='📦 Nuevo Producto';['p-nombre','p-precio','p-costo','p-stock','p-color','p-imei','p-bateria','p-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('p-codigo').value=generarCodigoProducto();poblarSelectCategorias('');abrirModal('modal-producto');}
-function editarProducto(idx){editProdIdx=idx;const p=DB.productos[idx];document.getElementById('modal-prod-title').textContent='✏️ Editar Producto';document.getElementById('p-codigo').value=p.codigo;document.getElementById('p-nombre').value=p.nombre;poblarSelectCategorias(p.cat);ponerValorDinero('p-precio',p.precio);ponerValorDinero('p-costo',p.costo);document.getElementById('p-stock').value=p.stock;document.getElementById('p-color').value=p.color||'';document.getElementById('p-imei').value=p.imei||'';document.getElementById('p-bateria').value=p.bateria||'';document.getElementById('p-desc').value=p.desc;abrirModal('modal-producto');}
+function abrirModalProducto(){editProdIdx=null;document.getElementById('modal-prod-title').textContent='📦 Nuevo Producto';['p-nombre','p-precio','p-costo','p-stock','p-color','p-proveedor','p-imei','p-bateria','p-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('p-codigo').value=generarCodigoProducto();poblarSelectCategorias('');abrirModal('modal-producto');}
+function editarProducto(idx){editProdIdx=idx;const p=DB.productos[idx];document.getElementById('modal-prod-title').textContent='✏️ Editar Producto';document.getElementById('p-codigo').value=p.codigo;document.getElementById('p-nombre').value=p.nombre;poblarSelectCategorias(p.cat);ponerValorDinero('p-precio',p.precio);ponerValorDinero('p-costo',p.costo);document.getElementById('p-stock').value=p.stock;document.getElementById('p-color').value=p.color||'';document.getElementById('p-proveedor').value=p.proveedor||'';document.getElementById('p-imei').value=p.imei||'';document.getElementById('p-bateria').value=p.bateria||'';document.getElementById('p-desc').value=p.desc;abrirModal('modal-producto');}
 function guardarProducto(){
   const nombre=document.getElementById('p-nombre').value.trim();
   if(!nombre){toast('El nombre es obligatorio',true);return;}
@@ -1253,7 +1263,7 @@ function guardarProducto(){
   if(precio<0||costo<0){toast('El precio y el costo no pueden ser negativos',true);return;}
   const baterVal=document.getElementById('p-bateria').value;
   const bateria=baterVal===''?null:Math.min(100,Math.max(0,parseInt(baterVal)||0));
-  const prod={id:editProdIdx!==null?DB.productos[editProdIdx].id:'P'+Date.now(),codigo:document.getElementById('p-codigo').value||generarCodigoProducto(),nombre,cat,precio,costo,stock:parseInt(document.getElementById('p-stock').value)||0,min:2,color:document.getElementById('p-color').value.trim()||null,imei:document.getElementById('p-imei').value.trim()||null,bateria,desc:document.getElementById('p-desc').value};
+  const prod={id:editProdIdx!==null?DB.productos[editProdIdx].id:'P'+Date.now(),codigo:document.getElementById('p-codigo').value||generarCodigoProducto(),nombre,cat,precio,costo,stock:parseInt(document.getElementById('p-stock').value)||0,min:2,color:document.getElementById('p-color').value.trim()||null,proveedor:document.getElementById('p-proveedor').value.trim()||null,imei:document.getElementById('p-imei').value.trim()||null,bateria,desc:document.getElementById('p-desc').value};
   if(editProdIdx!==null)DB.productos[editProdIdx]=prod;else DB.productos.push(prod);
   cerrarModal('modal-producto');renderProductos();refreshSelectores();
   if(precio>0&&precio<costo)toast(`⚠️ ${nombre} guardado, pero el precio de venta quedó por debajo del costo`,true);
