@@ -542,7 +542,12 @@
     <div id="page-productos" class="page">
       <div class="page-header">
         <div><div class="page-title">📦 Gestión de Productos</div><div class="page-sub">Catálogo, precios y stock</div></div>
-        <button class="btn btn-primary" onclick="abrirModalProducto()">➕ Nuevo Producto</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="exportarInventarioExcel()">📊 Exportar Excel</button>
+          <button class="btn btn-outline btn-sm" onclick="exportarInventarioPDF()">📄 Exportar PDF</button>
+          <button class="btn btn-primary" onclick="abrirModalIngreso()">📥 Ingresar Mercancía</button>
+          <button class="btn btn-primary" onclick="abrirModalProducto()">➕ Nuevo Producto</button>
+        </div>
       </div>
       <div class="search-row">
         <input class="search-input" type="text" id="search-prod" placeholder="🔍 Buscar por nombre o código..." oninput="renderProductos()">
@@ -558,11 +563,6 @@
     <div id="page-inventario" class="page">
       <div class="page-header">
         <div><div class="page-title">🗂️ Control de Inventario</div><div class="page-sub">Ingresos, salidas y ajustes de stock</div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-outline btn-sm" onclick="exportarInventarioExcel()">📊 Exportar Excel</button>
-          <button class="btn btn-outline btn-sm" onclick="exportarInventarioPDF()">📄 Exportar PDF</button>
-          <button class="btn btn-primary" onclick="abrirModalIngreso()">📥 Ingresar Mercancía</button>
-        </div>
       </div>
       <div class="kpi-grid kpi-grid-3" id="kpi-inventario"></div>
       <div class="card">
