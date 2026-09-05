@@ -1228,12 +1228,12 @@ function onCambioCategoriaSelect(){
   else{wrap.style.display='none';document.getElementById('p-cat-nueva').value='';}
 }
 function generarCodigoProducto(){
-  let max=0;
+  let max=-1;
   DB.productos.forEach(p=>{
-    const m=String(p.codigo||'').match(/^ELT-(\d+)$/);
+    const m=String(p.codigo||'').match(/^EL-(\d+)$/);
     if(m) max=Math.max(max,parseInt(m[1],10));
   });
-  return 'ELT-'+String(max+1).padStart(4,'0');
+  return 'EL-'+String(max+1).padStart(3,'0');
 }
 function abrirModalProducto(){editProdIdx=null;document.getElementById('modal-prod-title').textContent='📦 Nuevo Producto';['p-nombre','p-precio','p-costo','p-stock','p-color','p-imei','p-bateria','p-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('p-codigo').value=generarCodigoProducto();poblarSelectCategorias('');abrirModal('modal-producto');}
 function editarProducto(idx){editProdIdx=idx;const p=DB.productos[idx];document.getElementById('modal-prod-title').textContent='✏️ Editar Producto';document.getElementById('p-codigo').value=p.codigo;document.getElementById('p-nombre').value=p.nombre;poblarSelectCategorias(p.cat);ponerValorDinero('p-precio',p.precio);ponerValorDinero('p-costo',p.costo);document.getElementById('p-stock').value=p.stock;document.getElementById('p-color').value=p.color||'';document.getElementById('p-imei').value=p.imei||'';document.getElementById('p-bateria').value=p.bateria||'';document.getElementById('p-desc').value=p.desc;abrirModal('modal-producto');}
